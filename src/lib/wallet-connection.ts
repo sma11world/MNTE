@@ -14,8 +14,8 @@ export default class WalletConnection {
   constructor(private readonly api: WalletApi) {}
 
   async newConnection(bFKey?: string): Promise<Lucid> {
-    if (bFKey == null) {
-      // bFKey = env.BLOCKFROST_API;
+    if (bFKey === null || bFKey === "" || bFKey === undefined) {
+      bFKey = env?.PUBLIC_BLOCKFROST_API;
     }
 
     const lucid = await Lucid.new(

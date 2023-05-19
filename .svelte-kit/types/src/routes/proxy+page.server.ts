@@ -10,7 +10,5 @@ import { redirect } from "@sveltejs/kit";
 export const load = async ({ params }: Parameters<PageServerLoad>[0]) => {};
 
 export const actions = {
-  connect: async ({}) => {
-    console.log("test");
-  },
+  connect: async ({}) => {},
 } satisfies Actions;
