@@ -319,7 +319,7 @@
   let editArtist = false;
 
   function handleNew() {
-    goto("/mint/" + walletId);
+    goto("/mnte/" + walletId);
   }
 
   async function onChangeHandler(e: Event): Promise<void> {
