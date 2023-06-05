@@ -9,8 +9,6 @@
     popup,
   } from "@skeletonlabs/skeleton";
 
-  import { type WalletApi } from "lucid-cardano";
-
   import {
     computePosition,
     autoUpdate,
