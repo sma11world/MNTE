@@ -8,7 +8,7 @@ Everything you need to build a Svelte project, powered by [`create-svelte`](http
 
 ## Start
 
-If you're seeing this, you've probably already done this step. Congrats!
+Pull and run locally!
 
 ```bash
 # install dependencies
