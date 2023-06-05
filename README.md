@@ -1,4 +1,4 @@
-# MINT EDITIONS
+# MNTE - Cardano Artist Hub
 
 ## MINT EDITIONS
 
