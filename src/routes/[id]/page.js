@@ -1,6 +1,6 @@
-<script lang="ts">
+{
+  /* <script lang="ts">
   import { page } from "$app/stores";
-  import ImageCard from "$lib/ImageCard.svelte";
   import WalletConnection from "$lib/wallet-connection";
   import {
     Avatar,
@@ -19,9 +19,6 @@
     type SpendingValidator,
     type WalletApi,
   } from "lucid-cardano";
-
-  let files: any = [];
-
   let artname = "MeBaby";
   let artistname = "Artist name";
   let desc = "Test";
@@ -34,15 +31,6 @@
   let walletId = "";
   let payoutAddy =
     "addr_test1qpwzwpv7yawrpdes0wn56zprupy6ddjz78df58yhx2jyl953l2vnvgm387wmseau0zqp8a239a8q8x0jcrwsl3yssevs7gjydh";
-  let currentStep = 0;
-  let totalSteps = 2;
-  function handleNext() {
-    if (currentStep == totalSteps) {
-      currentStep = 0;
-    } else {
-      currentStep++;
-    }
-  }
 
   async function create() {
     walletId = $page.params.id;
@@ -208,7 +196,7 @@
       <h2 class="font-bold">MINT {isNft ? "ASSET" : "EDITIONS"}</h2>
       <p>ATTENTION: Website is in BETA mode.</p>
       <br />
-      <!-- <div class="card p-4 mt-12 resize-none">
+      <div class="card p-4 mt-12 resize-none">
         <label class="label">
           <span>Thumbnail Image CID</span>
           <input
@@ -306,77 +294,8 @@
             imgUrl == ""}
           on:click={create}>Mint</button
         >
-      </div> -->
+      </div>
 
-      {#if currentStep == 0}
-        <ImageCard data={"Create"} bind:files />
-      {:else if currentStep == 1}
-        <label class="label">
-          <span>Artist Name</span>
-          <input
-            class="input items-center text-center"
-            type="text"
-            placeholder="Artist Name"
-            bind:value={artistname}
-          />
-        </label>
-        <br />
-        <label class="label">
-          <span>Description</span>
-          <textarea
-            class="textarea"
-            rows="4"
-            placeholder="This is a tokenized piece of digital art!"
-            bind:value={desc}
-          />
-        </label>
-      {:else if currentStep == totalSteps}
-        <label class="label">
-          <span>Royalties</span>
-          <input
-            class="input items-center text-center"
-            type="number"
-            placeholder="4 = 4%"
-            bind:value={percentRoyalty}
-          />
-        </label>
-        <br />
-        <label class="label">
-          <span>Royalty Address</span>
-          <input
-            class="input items-center text-center"
-            type="text"
-            placeholder="Your Royalty Wallet"
-            bind:value={payoutAddy}
-          />
-        </label>
-        <br />
-        <button
-          class="btn variant-filled-primary input-group"
-          disabled={artistname == null ||
-            artistname == "" ||
-            artname == null ||
-            artname == "" ||
-            temp == null ||
-            temp <= 0 ||
-            payoutAddy == "" ||
-            percentRoyalty == "" ||
-            desc == null ||
-            desc == "" ||
-            imgUrl == null ||
-            imgUrl == ""}
-          on:click={create}>Mint</button
-        >
-        <br />
-      {:else}
-        <p>Oops!</p>
-      {/if}
-      <br />
-      <button
-        class="btn variant-filled-surface input-group"
-        on:click={handleNext}
-        >{currentStep == totalSteps ? "Restart" : "Continue"}</button
-      >
       <Toast />
     </div>
     {#if policy}
@@ -397,7 +316,7 @@
   </div>
 </div>
 <div class="-mt-12 justify-center text-center flex items-center">
-  <!-- <p>FAQ</p>
+  <p>FAQ</p>
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="32"
@@ -409,7 +328,7 @@
       fill="#eee"
       d="M98.9 184.7l1.8 2.1 136 156.5c4.6 5.3 11.5 8.6 19.2 8.6 7.7 0 14.6-3.4 19.2-8.6L411 187.1l2.3-2.6c1.7-2.5 2.7-5.5 2.7-8.7 0-8.7-7.4-15.8-16.6-15.8H112.6c-9.2 0-16.6 7.1-16.6 15.8 0 3.3 1.1 6.4 2.9 8.9z"
     /></svg
-  > -->
+  >
 </div>
 <div class="container mx-auto flex justify-center items-center">
   <div class="text-center p-6 mx-auto">
@@ -418,36 +337,11 @@
       <h2>What Am I Making?</h2>
       <br />
       <br />
-      {#if !files}
-        <div class="card">
-          <div>
-            <img
-              class="card-img"
-              src="https://avataaars.io/?avatarStyle=Transparent&topType=ShortHairShortWaved&accessoriesType=Prescription01&hairColor=Black&facialHairType=Blank&clotheType=Hoodie&clotheColor=Blue03&eyeType=Default&eyebrowType=Default&mouthType=Twinkle&skinColor=Light"
-            />
-          </div>
-          <div class="card-text">
-            <h2 class="card-title">Gaurav Gawade</h2>
-            <p class="card-description">
-              <span
-                >Lorem ipsum dolor sit amet consectetur, adipisicing eli.</span
-              >
-            </p>
-            <ul class="card-skills">
-              <li class="skill">UI Designer.</li>
-              <li class="skill">UX Designer.</li>
-              <li class="skill">Web Developer.</li>
-            </ul>
-            <a href="#" class="card-link">Read More</a>
-          </div>
-        </div>
-      {:else}
-        <p>
-          Essentially you are minting a tokenized edition of artwork. Wallets
-          may show this as coins or tokens but they are actually just digital
-          numbers associated with blockchain addresses and custom metadata.
-        </p>
-      {/if}
+      <p>
+        Essentially you are minting a tokenized edition of artwork. Wallets may
+        show this as coins or tokens but they are actually just digital numbers
+        associated with blockchain addresses and custom metadata.
+      </p>
     </div>
   </div>
 </div>
@@ -483,5 +377,6 @@
     50% {
       transform: scale(1.5);
     }
-  } */
-</style>
+  } 
+</style> */
+}

@@ -96,7 +96,7 @@ declare module '$env/static/private' {
  * ```
  */
 declare module '$env/static/public' {
-	export const PUBLIC_BLOCKFROST_API: string;
+	
 }
 
 /**
@@ -188,7 +188,6 @@ declare module '$env/dynamic/private' {
  */
 declare module '$env/dynamic/public' {
 	export const env: {
-		PUBLIC_BLOCKFROST_API: string;
 		[key: `PUBLIC_${string}`]: string | undefined;
 	}
 }
