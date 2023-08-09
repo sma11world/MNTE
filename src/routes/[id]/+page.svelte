@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from "$app/stores";
+  import { env } from "$env/dynamic/public";
   import ImageCard from "$lib/ImageCard.svelte";
-  import WalletConnection from "$lib/wallet-connection";
   import {
     Avatar,
     Toast,
@@ -18,6 +18,8 @@
     toUnit,
     type SpendingValidator,
     type WalletApi,
+    Blockfrost,
+    type Script,
   } from "lucid-cardano";
 
   //build stages
@@ -58,90 +60,99 @@
       let wallet: WalletApi;
       try {
         wallet = await connector.enable();
-        const activeUser = new WalletConnection(wallet);
+        // const activeUser = new WalletConnection(wallet);
 
-        let usr = await (await activeUser.newConnection()).wallet.address();
-
-        const emulator = new Emulator([{ address: usr, assets: {} }]);
-        const lucid = await Lucid.new(emulator);
-
-        lucid.selectWallet(wallet);
-
-        const { paymentCredential } = await lucid.utils.getAddressDetails(
-          await usr
+        // let usr = await (await activeUser.newConnection()).wallet.address();
+        const bFKey = env?.PUBLIC_BLOCKFROST_API;
+        // const emulator = new Emulator([{ address: usr, assets: {} }]);
+        const lucid = await Lucid.new(
+          new Blockfrost(
+            "https://cardano-preprod.blockfrost.io/api/v0",
+            bFKey as string
+          ),
+          "Preprod"
         );
 
-        const script = await lucid.utils.nativeScriptFromJson({
+        const liveConnection = await lucid.selectWallet(wallet);
+        const griffAddress = await liveConnection.wallet.address();
+        console.log(lucid);
+
+        const { paymentCredential } =
+          lucid.utils.getAddressDetails(griffAddress);
+
+        const mintingPolicy = liveConnection.utils.nativeScriptFromJson({
           type: "all",
           scripts: [
-            { type: "after", slot: 10 },
-            { type: "sig", keyHash: paymentCredential?.hash! },
+            { type: "sig", keyHash: paymentCredential?.hash },
+            {
+              type: "before",
+              slot: liveConnection.utils.unixTimeToSlot(Date.now() + 1000000),
+            },
           ],
         });
 
-        emulator.awaitBlock(10);
+        const policyId = liveConnection.utils.mintingPolicyToId(mintingPolicy);
 
-        policy = lucid.utils.mintingPolicyToId(script);
-
-        const unspendableScript: SpendingValidator = {
-          type: "PlutusV2",
-          script: "54530100003222233335734600893124c4c9312501",
-        };
         const unspendableAddress =
-          lucid.utils.validatorToAddress(unspendableScript);
+          liveConnection.utils.validatorToAddress(mintingPolicy);
 
         let supply = 2n;
         supply = BigInt(temp);
-        console.log("unspendableAddress: " + unspendableAddress);
-        console.log("policy: " + policy);
-        console.log("ref asset:" + [toUnit(policy, fromText(title), 100)]);
-        console.log("user asset:" + [toUnit(policy, fromText(title), 444)]);
+        // console.log("unspendableAddress: " + unspendableAddress);
+        console.log("policy: " + policyId);
+        console.log("ref asset:" + [toUnit(policyId, fromText(title), 100)]);
+        console.log("user asset:" + [toUnit(policyId, fromText(title), 444)]);
 
-        const tx = await lucid
+        const [utxo] = await liveConnection.wallet.getUtxos();
+
+        const tx = await liveConnection
           .newTx()
+          .collectFrom([utxo])
           .mintAssets({
-            [toUnit(policy, fromText(title), 100)]: 1n,
-            [toUnit(policy, fromText(title), 444)]: supply,
+            [toUnit(policyId, fromText(title), 100)]: 1n,
+            [toUnit(policyId, fromText(title), 444)]: supply,
           })
           .payToContract(
             unspendableAddress,
             Data.to(
               new Constr(0, [
                 Data.fromJson({
-                  files_details: {
-                    name: title,
-                    mediaType: "image/png",
-                    src: !imgUrl.includes("ipfs://")
-                      ? "ipfs://" + imgUrl
-                      : imgUrl,
-                  },
-                  metadata: {
-                    mediaType: "image/png",
-                    name: title,
-                    image: !imgUrl2.includes("ipfs://")
-                      ? "ipfs://" + imgUrl2
-                      : imgUrl2 != ""
-                      ? imgUrl2
-                      : imgUrl,
-                  },
+                  name: title,
+                  image: !imgUrl.includes("ipfs://")
+                    ? "ipfs://" + imgUrl
+                    : imgUrl,
+                  mediaType: "image/png",
                   description: desc,
+                  files: [
+                    {
+                      mediaType: "image/png",
+                      name: title,
+                      image: !imgUrl2.includes("ipfs://")
+                        ? "ipfs://" + imgUrl2
+                        : imgUrl2 != ""
+                        ? imgUrl2
+                        : imgUrl,
+                    },
+                  ],
                   editions: temp,
                   royalties: percentRoyalty + "%",
+                  artist: "testing 123",
+                  standard: "cip68",
+                  version: 1n,
                 }),
-                supply,
+                222,
                 new Constr(0, []),
               ])
             ),
-            { [toUnit(policy, fromText(title), 100)]: 1n }
+            {
+              [toUnit(policyId, title, 100)]: 1n,
+            }
           )
-          .validFrom(emulator.now())
-          .attachMintingPolicy(script)
-          .complete();
+          .attachMintingPolicy(mintingPolicy)
+          .complete()
+          .then((tx) => tx.sign().complete());
 
-        console.log("Minted Assets!");
-
-        const signedTx = await tx.sign().complete();
-        const mintHash = await signedTx.submit();
+        const mintHash = await tx.submit();
 
         if (mintHash) {
           const t: ToastSettings = {
@@ -161,43 +172,47 @@
           console.log("FAILED");
         }
 
-        await lucid.awaitTx(mintHash);
+        await liveConnection.awaitTx(mintHash);
 
-        emulator.awaitBlock(50);
+        // emulator.awaitBlock(50);
         let fee = +percentRoyalty / 100;
         console.log(fee);
 
         const { txHash, royaltyToken } = await Contract.createRoyalty(
-          lucid,
+          liveConnection,
           [
             {
               address: payoutAddy,
               fee,
             },
           ],
-          usr
+          griffAddress
         );
+
         console.log("Royassdssslties: " + royaltyToken);
 
-        await lucid.awaitTx(txHash);
+        await liveConnection.awaitTx(txHash);
 
-        const deployHash = await new Contract(lucid, {
+        const deployHash = await new Contract(liveConnection, {
           royaltyToken,
-          owner: usr,
+          owner: griffAddress,
           policyId: policy,
         }).deployScripts();
 
         console.log("deployjjjjjHash: " + deployHash);
 
-        await lucid.awaitTx(deployHash);
+        await liveConnection.awaitTx(deployHash);
 
-        const contract = await new Contract(lucid, {
+        const contract = await new Contract(liveConnection, {
           royaltyToken,
           policyId: policy,
-          owner: usr,
+          owner: griffAddress,
           deployHash,
         });
         console.log("contract: " + contract);
+        console.log("Royalties: " + contract.getRoyalty());
+        console.log("Royalties: " + contract.getRoyaltyInfo());
+        // console.log("Royalties: "+contract.sell(, ));
       } catch (e) {
         console.log("err:" + JSON.stringify(e));
 
@@ -288,19 +303,8 @@
           </div>
         </div>
         <br />
-        <button
-          class="btn variant-filled-primary input-group"
-          disabled={title == null ||
-            title == "" ||
-            temp == null ||
-            temp <= 0 ||
-            payoutAddy == "" ||
-            percentRoyalty == "" ||
-            desc == null ||
-            desc == "" ||
-            imgUrl == null ||
-            imgUrl == ""}
-          on:click={create}>Mint</button
+        <button class="btn variant-filled-primary input-group" on:click={create}
+          >Mint</button
         >
         <br />
       {/if}

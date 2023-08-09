@@ -26,7 +26,6 @@
   import { storePopup } from "@skeletonlabs/skeleton";
   import { page } from "$app/stores";
   import type { PageData } from "./$types";
-  import WalletConnection from "$lib/wallet-connection";
   import type { WalletApi } from "lucid-cardano";
   import { goto } from "$app/navigation";
 
@@ -48,24 +47,24 @@
 
   let data: PageData;
 
-  async function sync(walletId: string) {
-    if (cardano && cardano[walletId]) {
-      const connector = cardano[walletId];
-      // Attempt to fetch connector API
-      let wallet: WalletApi;
-      try {
-        wallet = await connector.enable();
-        isConnected = true;
-      } catch (e) {
-        return null;
-      }
+  // async function sync(walletId: string) {
+  //   if (cardano && cardano[walletId]) {
+  //     const connector = cardano[walletId];
+  //     // Attempt to fetch connector API
+  //     let wallet: WalletApi;
+  //     try {
+  //       wallet = await connector.enable();
+  //       isConnected = true;
+  //     } catch (e) {
+  //       return null;
+  //     }
 
-      const activeUser = new WalletConnection(wallet);
-      //todo: save {connected:true. address:"addy12435"} and pull for next page
-      const lucid = activeUser.newConnection();
-      goto("/" + walletId);
-    }
-  }
+  //     const activeUser = new WalletConnection(wallet);
+  //     //todo: save {connected:true. address:"addy12435"} and pull for next page
+  //     const lucid = activeUser.newConnection();
+  //     goto("/" + walletId);
+  //   }
+  // }
 
   // $: sync(comboboxValue as );
   //$:handle = getHandle(comboboxValue);
