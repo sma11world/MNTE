@@ -75,20 +75,14 @@
 
         const liveConnection = await lucid.selectWallet(wallet);
         const griffAddress = await liveConnection.wallet.address();
-        console.log(lucid);
 
         const { paymentCredential } =
           lucid.utils.getAddressDetails(griffAddress);
+        console.log("P " + paymentCredential);
 
         const mintingPolicy = liveConnection.utils.nativeScriptFromJson({
           type: "all",
-          scripts: [
-            { type: "sig", keyHash: paymentCredential?.hash },
-            {
-              type: "before",
-              slot: liveConnection.utils.unixTimeToSlot(Date.now() + 1000000),
-            },
-          ],
+          scripts: [{ type: "sig", keyHash: paymentCredential?.hash }],
         });
 
         const policyId = liveConnection.utils.mintingPolicyToId(mintingPolicy);
@@ -98,61 +92,61 @@
 
         let supply = 2n;
         supply = BigInt(temp);
-        // console.log("unspendableAddress: " + unspendableAddress);
+        console.log("unspendableAddress: " + unspendableAddress);
         console.log("policy: " + policyId);
-        console.log("ref asset:" + [toUnit(policyId, fromText(title), 100)]);
-        console.log("user asset:" + [toUnit(policyId, fromText(title), 444)]);
-
-        const [utxo] = await liveConnection.wallet.getUtxos();
 
         const tx = await liveConnection
           .newTx()
-          .collectFrom([utxo])
           .mintAssets({
             [toUnit(policyId, fromText(title), 100)]: 1n,
             [toUnit(policyId, fromText(title), 444)]: supply,
           })
-          .payToContract(
-            unspendableAddress,
-            Data.to(
-              new Constr(0, [
-                Data.fromJson({
-                  name: title,
-                  image: !imgUrl.includes("ipfs://")
-                    ? "ipfs://" + imgUrl
-                    : imgUrl,
-                  mediaType: "image/png",
-                  description: desc,
-                  files: [
-                    {
-                      mediaType: "image/png",
-                      name: title,
-                      image: !imgUrl2.includes("ipfs://")
-                        ? "ipfs://" + imgUrl2
-                        : imgUrl2 != ""
-                        ? imgUrl2
-                        : imgUrl,
-                    },
-                  ],
-                  editions: temp,
-                  royalties: percentRoyalty + "%",
-                  artist: "testing 123",
-                  standard: "cip68",
-                  version: 1n,
-                }),
-                222,
-                new Constr(0, []),
-              ])
-            ),
-            {
-              [toUnit(policyId, title, 100)]: 1n,
-            }
-          )
+          .validTo(Date.now() + 100000)
           .attachMintingPolicy(mintingPolicy)
-          .complete()
-          .then((tx) => tx.sign().complete());
+          .complete();
 
-        const mintHash = await tx.submit();
+        const signedTx = await tx.sign().complete();
+
+        const mintHash = await signedTx.submit();
+
+        // .payToContract(
+        //   unspendableAddress,
+        //   Data.to(
+        //     new Constr(0, [
+        //       Data.fromJson({
+        //         name: title,
+        //         image: !imgUrl.includes("ipfs://")
+        //           ? "ipfs://" + imgUrl
+        //           : imgUrl,
+        //         mediaType: "image/png",
+        //         description: desc,
+        //         files: [
+        //           {
+        //             mediaType: "image/png",
+        //             name: title,
+        //             image: !imgUrl2.includes("ipfs://")
+        //               ? "ipfs://" + imgUrl2
+        //               : imgUrl2 != ""
+        //               ? imgUrl2
+        //               : imgUrl,
+        //           },
+        //         ],
+        //         editions: temp,
+        //         royalties: percentRoyalty + "%",
+        //         artist: "testing 123",
+        //         standard: "cip68",
+        //         version: 1n,
+        //       }),
+        //       721,
+        //       new Constr(0, []),
+        //     ])
+        //   ),
+        //   {
+        //     [toUnit(policyId, title, 100)]: 1n,
+        //   }
+        // )
+
+        // const mintHash = await tx.submit();
 
         if (mintHash) {
           const t: ToastSettings = {

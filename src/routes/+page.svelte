@@ -1,6 +1,5 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import WalletConnection from "$lib/wallet-connection";
   import {
     ListBox,
     ListBoxItem,
@@ -30,24 +29,8 @@
   };
 
   async function sync(walletId: string) {
-    if (cardano && cardano[walletId]) {
-      const connector = cardano[walletId];
-      // Attempt to fetch connector API
-      let wallet: WalletApi;
-      try {
-        wallet = await connector.enable();
-        isConnected = true;
-      } catch (e) {
-        return null;
-      }
-
-      const activeUser = new WalletConnection(wallet);
-      //todo: save {connected:true. address:"addy12435"} and pull for next page
-      const lucid = activeUser.newConnection();
-      goto("/" + walletId);
-    }
+    goto("/" + walletId);
   }
-  import logo from "$lib/assets/mnt.png";
 </script>
 
 <div class="container h-full mx-auto flex justify-center items-center">
