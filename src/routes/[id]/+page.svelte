@@ -23,7 +23,7 @@
   const STEP_ROYALTIES = "royalties";
 
   //build stages
-  $: currentStep = "STEP_UPLOAD";
+  $: currentStep = STEP_UPLOAD;
   let totalSteps = 2;
 
   //asset
