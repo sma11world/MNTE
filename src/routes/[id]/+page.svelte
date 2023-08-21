@@ -3,52 +3,65 @@
   import { env } from "$env/dynamic/public";
   import ImageCard from "$lib/ImageCard.svelte";
   import {
-    Avatar,
     Toast,
     toastStore,
     type ToastSettings,
   } from "@skeletonlabs/skeleton";
-  import { Contract } from "@spacebudz/nebula";
   import {
     Constr,
     Data,
-    Emulator,
     fromText,
     Lucid,
     toUnit,
-    type SpendingValidator,
     type WalletApi,
     Blockfrost,
-    type Script,
   } from "lucid-cardano";
 
+  const STEP_UPLOAD = "image";
+  const STEP_META = "metadata";
+  const STEP_EDITION = "editions";
+  const STEP_ROYALTIES = "royalties";
+
   //build stages
-  let currentStep = 0;
+  $: currentStep = "STEP_UPLOAD";
   let totalSteps = 2;
 
   //asset
   let files: any = [];
+  let controlAddy = "";
+  let token = "ssss";
   let title = "";
+  let artist = "";
   let desc = "";
   let percentRoyalty = "";
-  let payoutAddy =
-    "addr_test1qpwzwpv7yawrpdes0wn56zprupy6ddjz78df58yhx2jyl953l2vnvgm387wmseau0zqp8a239a8q8x0jcrwsl3yssevs7gjydh";
+  let payoutAddy = "";
 
-  //idk
-  let imgUrl = "QmQPWqbefNjWn55M5s3AMAsHNMMo28mUZAQDhTqeEjNfDu";
-  let imgUrl2 = "QmeorbDDeVrRR8Z4YmcWfVYLCMyBFoyBCbvyCpTGgNSMKm";
-  let temp = 10;
+  //editions
+  let temp = 0;
 
   //contract/lucid
   let policy = "";
   let walletId = "";
 
-  function handleNext() {
-    if (currentStep == totalSteps) {
-      currentStep = 0;
-    } else {
-      currentStep++;
+  function validateForm(): boolean {
+    let valid = false;
+    if (
+      token != "" &&
+      artist != "" &&
+      desc != "" &&
+      percentRoyalty != "" &&
+      payoutAddy != "" &&
+      title != "" &&
+      files != null &&
+      files.length > 0
+    ) {
+      valid = true;
     }
+    return valid;
+  }
+
+  function handleNext(step: string) {
+    currentStep = step;
   }
 
   async function create() {
@@ -87,66 +100,124 @@
 
         const policyId = liveConnection.utils.mintingPolicyToId(mintingPolicy);
 
-        const unspendableAddress =
+        const controlAddress =
           liveConnection.utils.validatorToAddress(mintingPolicy);
+
+        controlAddy = controlAddress;
 
         let supply = 2n;
         supply = BigInt(temp);
-        console.log("unspendableAddress: " + unspendableAddress);
+        console.log("updateableAddress: " + controlAddress);
         console.log("policy: " + policyId);
 
+        const [utxo] = await lucid.utxosAt(controlAddress);
+
+        const [referenceUtxo] = await lucid.utxosAtWithUnit(
+          controlAddress,
+          toUnit(policyId, fromText(title), 100)
+        );
+
+        const royaltyInfo: any = {
+          address: payoutAddy,
+          fee: percentRoyalty,
+          // minFee: recipient.minFee || null,
+          // maxFee: recipient.maxFee || null,
+          version: 1n,
+          extra: Data.from<Data>(Data.void()),
+        };
+
+        console.log(files[0]["ipfs"]);
+        console.log(files[0].ipfs);
+        // console.log([referenceUtxo]);
         const tx = await liveConnection
           .newTx()
+          // .collectFrom([referenceUtxo])
           .mintAssets({
-            [toUnit(policyId, fromText(title), 100)]: 1n,
-            [toUnit(policyId, fromText(title), 444)]: supply,
+            [toUnit(policyId, fromText(token), 100)]: 1n,
+            // [toUnit(policyId, fromText(title), 222)]: 1n,
+            [toUnit(policyId, fromText(token), 444)]: supply,
+            [toUnit(policyId, fromText(token), 500)]: 1n,
+            // [toUnit(policyId, fromText(title + "#2"), 100)]: -1n,
           })
-          .validTo(Date.now() + 100000)
+          .payToAddressWithData(
+            controlAddress,
+            Data.to(
+              new Constr(0, [Data.fromJson(royaltyInfo), 1n, new Constr(0, [])])
+            ),
+            { [toUnit(policyId, fromText(token), 500)]: 1n }
+          )
+          // .payToAddress(
+          //   "addr_test1qzrkmkyzpd5mxw058j4anx2pq6j6wan6zlcjpa36lv3g5xqjelcg7casn9edxzea3neuyqnla3nmnau24rrty8y4gyss5avap5",
+          //   { [toUnit(policyId, fromText(title), 444)]: 1n }
+          // )
+          // .payToAddress(
+          //   "addr_test1qr3mz0qxa5ndvcv0tac7jqz7pc4c9j7rc6gh8j0xtmvjjmr687fe2yft906tnzdscp8wkhrq3mgmhdxvqtjgk0lhkrwqdpvcm7",
+          //   { [toUnit(policyId, fromText(title), 444)]: 1n }
+          // )
+          // .payToAddress(
+          //   "addr_test1qpg06wpu36w3fz7e93gywjqppm0cvwtndfm8pqezrec9e5l2lu23mpwnk8chc9rqmlkpwg2w7k2pqs6jlt0cqrrxp9eqtwl2dc",
+          //   // griffAddress,
+          //   { [toUnit(policyId, fromText(title), 444)]: 1n }
+          // )
+          // .payToAddress(
+          //   "addr_test1qzl0txr074ekh57xgpv4l9vtrwnhjfffyavdn0nrl8g00zc7hyfnas0v5c6t3e2g0glmwx823a699dutwpvwy22d9k8ssdm5tp",
+          //   { [toUnit(policyId, fromText(title), 444)]: 1n }
+          // )
+          // .payToAddress(
+          //   "addr_test1qqsa6nlhv8gd2k6eqpejjp4wm8kvlx9znmcez66jfdnrfx05fd0nyfg2h7gcmtujasqjj89zj79mszd37dt527j4v5uq7jf9zr",
+          //   { [toUnit(policyId, fromText(title), 444)]: 1n }
+          // )
+          // .payToAddress(
+          //   "addr_test1qr5882s0r2gfqpkeer70mxkz7jaejy8h3xxgt3r9sffqyly3s3cs757n0jlgtjywtv075fmnucx3qy3c0mwp65c6alvqy7p342",
+          //   { [toUnit(policyId, fromText(title), 444)]: 1n }
+          // )
+          .payToContract(
+            controlAddress,
+            Data.to(
+              new Constr(0, [
+                Data.fromJson({
+                  name: title,
+                  image: files[0]["ipfs"],
+                  mediaType: "image/png",
+                  description: desc,
+                  // files: [
+                  //   {
+                  //     mediaType: "image/png",
+                  //     name: "STAGE #1",
+                  //     image: !imgUrl.includes("ipfs://")
+                  //       ? "ipfs://" + imgUrl
+                  //       : imgUrl != ""
+                  //       ? imgUrl
+                  //       : imgUrl,
+                  //   },
+                  //   {
+                  //     mediaType: "image/png",
+                  //     name: "STAGE #2",
+                  //     image: !imgUrl2.includes("ipfs://")
+                  //       ? "ipfs://" + imgUrl2
+                  //       : imgUrl2 != ""
+                  //       ? imgUrl2
+                  //       : imgUrl2,
+                  //   },
+                  // ],
+                }),
+                1n,
+                new Constr(0, []),
+              ])
+            ),
+            {
+              [toUnit(policyId, fromText(token), 100)]: 1n,
+            }
+          )
+          .validTo(Date.now() + 10000000)
           .attachMintingPolicy(mintingPolicy)
           .complete();
 
+        // .attachMetadata(721, metadata)
+        // .payToAddressWithData()
+
         const signedTx = await tx.sign().complete();
-
         const mintHash = await signedTx.submit();
-
-        // .payToContract(
-        //   unspendableAddress,
-        //   Data.to(
-        //     new Constr(0, [
-        //       Data.fromJson({
-        //         name: title,
-        //         image: !imgUrl.includes("ipfs://")
-        //           ? "ipfs://" + imgUrl
-        //           : imgUrl,
-        //         mediaType: "image/png",
-        //         description: desc,
-        //         files: [
-        //           {
-        //             mediaType: "image/png",
-        //             name: title,
-        //             image: !imgUrl2.includes("ipfs://")
-        //               ? "ipfs://" + imgUrl2
-        //               : imgUrl2 != ""
-        //               ? imgUrl2
-        //               : imgUrl,
-        //           },
-        //         ],
-        //         editions: temp,
-        //         royalties: percentRoyalty + "%",
-        //         artist: "testing 123",
-        //         standard: "cip68",
-        //         version: 1n,
-        //       }),
-        //       721,
-        //       new Constr(0, []),
-        //     ])
-        //   ),
-        //   {
-        //     [toUnit(policyId, title, 100)]: 1n,
-        //   }
-        // )
-
-        // const mintHash = await tx.submit();
 
         if (mintHash) {
           const t: ToastSettings = {
@@ -166,48 +237,48 @@
           console.log("FAILED");
         }
 
-        await liveConnection.awaitTx(mintHash);
+        // await liveConnection.awaitTx(mintHash);
 
-        // emulator.awaitBlock(50);
-        let fee = +percentRoyalty / 100;
-        console.log(fee);
+        // // emulator.awaitBlock(50);
+        // let fee = +percentRoyalty / 100;
+        // console.log(fee);
 
-        const { txHash, royaltyToken } = await Contract.createRoyalty(
-          liveConnection,
-          [
-            {
-              address: payoutAddy,
-              fee,
-            },
-          ],
-          griffAddress
-        );
+        // const { txHash, royaltyToken } = await Contract.createRoyalty(
+        //   liveConnection,
+        //   [
+        //     {
+        //       address: payoutAddy,
+        //       fee,
+        //     },
+        //   ],
+        //   griffAddress
+        // );
 
-        console.log("Royassdssslties: " + royaltyToken);
+        // console.log("Royassdssslties: " + royaltyToken);
 
-        await liveConnection.awaitTx(txHash);
+        // await liveConnection.awaitTx(txHash);
 
-        const deployHash = await new Contract(liveConnection, {
-          royaltyToken,
-          owner: griffAddress,
-          policyId: policy,
-        }).deployScripts();
+        // const deployHash = await new Contract(liveConnection, {
+        //   royaltyToken,
+        //   owner: griffAddress,
+        //   policyId: policy,
+        // }).deployScripts();
 
-        console.log("deployjjjjjHash: " + deployHash);
+        // console.log("deployjjjjjHash: " + deployHash);
 
-        await liveConnection.awaitTx(deployHash);
+        // await liveConnection.awaitTx(deployHash);
 
-        const contract = await new Contract(liveConnection, {
-          royaltyToken,
-          policyId: policy,
-          owner: griffAddress,
-          deployHash,
-        });
-        console.log("contract: " + contract);
-        console.log("Royalties: " + contract.getRoyalty());
-        console.log("Royalties: " + contract.getRoyaltyInfo());
-        // console.log("Royalties: "+contract.sell(, ));
+        // const contract = await new Contract(liveConnection, {
+        //   royaltyToken,
+        //   policyId: policy,
+        //   owner: griffAddress,
+        //   deployHash,
+        // });
+        // console.log("contract: " + contract);
+        // console.log("Royalties: " + contract.getRoyalty());
+        // console.log("Royalties: " + contract.getRoyaltyInfo());
       } catch (e) {
+        console.log("err:" + e);
         console.log("err:" + JSON.stringify(e));
 
         return null;
@@ -216,108 +287,168 @@
   }
 </script>
 
-<div class="container justify-center text-center mx-auto items-center">
-  <div class="flex">
-    <div class="text-center p-6 mx-auto">
-      {#if currentStep == 0}
-        <ImageCard data={"Create"} bind:files />
-      {:else if currentStep == 1}
-        <label class="label">
-          <span>Artwork Name</span>
-          <input
-            class="input items-center text-center"
-            type="text"
-            placeholder="Title"
-            bind:value={title}
-          />
-        </label>
-        <br />
-        <label class="label">
-          <span>Description</span>
-          <textarea
-            class="textarea"
-            rows="4"
-            placeholder="This is a tokenized piece of digital art!"
-            bind:value={desc}
-          />
-        </label>
-      {:else if currentStep == totalSteps}
-        <label class="label">
-          <span>Royalties</span>
-          <input
-            class="input items-center text-center"
-            type="number"
-            placeholder="4 = 4%"
-            bind:value={percentRoyalty}
-          />
-        </label>
-        <br />
-        <label class="label">
-          <span>Royalty Address</span>
-          <input
-            class="input items-center text-center"
-            type="text"
-            placeholder="Your Royalty Wallet"
-            bind:value={payoutAddy}
-          />
-        </label>
-      {:else}
-        <p>Oops!</p>
-      {/if}
-      <br />
-
-      <button
-        class="btn variant-filled-surface input-group"
-        on:click={handleNext}
-        >{currentStep == totalSteps ? "Restart" : "Continue"}</button
-      >
+<div class="container mt-32 mx-auto p-4 md:p-0">
+  <div class="shadow-lg flex flex-wrap w-full lg:w-3/4 mx-auto border-none">
+    <div
+      class="w-full md:w-1/5 h-64 md:h-auto relative p-4 bg-black text-white"
+    >
+      <div class="text-xl text-center items-center justify-center">
+        <ul class="mt-12 p-1">
+          <li class="">
+            <button
+              class="focus:text-primary-500"
+              on:click={() => {
+                handleNext(STEP_UPLOAD);
+              }}>upload</button
+            >
+          </li>
+          <li class="">
+            <button
+              class="focus:text-secondary-500"
+              on:click={() => {
+                handleNext(STEP_META);
+              }}>metadata</button
+            >
+          </li>
+          <li class="">
+            <button
+              class="focus:text-tertiary-500"
+              on:click={() => {
+                handleNext(STEP_EDITION);
+              }}>editions</button
+            >
+          </li>
+          <li class="">
+            <button
+              class="focus:text-warning-500"
+              on:click={() => {
+                handleNext(STEP_ROYALTIES);
+              }}>royalties</button
+            >
+          </li>
+          <!-- disabled={validateForm} -->
+          <button
+            on:click={create}
+            class="bg-white hover:bg-grey-darker focus:text-error hover:text-white w-1/2 lg:w-full py-2 mx-auto mt-12 text-black"
+            >MINT</button
+          >
+        </ul>
+        <i
+          class="fa fa-heart text-white hover:text-red-light ml-4 mt-4 cursor-pointer"
+        />
+      </div>
     </div>
-  </div>
-  <div class="">
-    <div class="text-center p-6 mx-auto">
-      {#if files.length > 0 && currentStep >= 1}
-        <div class="card">
-          <div class="flex mx-auto p-4">
-            <img
-              class="h-32 w-32 card-img h-full rounded"
-              src={URL.createObjectURL(files[0])}
-            />
-            <h2 class="card-title p-4">{title.substring(0, 13)}</h2>
-            <p class="card-description">
-              <span>{desc.substring(0, 30)}</span>
-            </p>
-            {#if percentRoyalty}
-              <ul class="">
-                <li class="skill">Royalties: {percentRoyalty}%</li>
-                <li class="skill">
-                  Royalty Payout: {payoutAddy.substring(0, 13)}
-                </li>
-              </ul>
-            {/if}
+
+    <div class="w-full md:w-3/4 ml-2" style="background-color:transparent;">
+      <div class="h-full mx-auto px-6">
+        {#if currentStep == STEP_UPLOAD}
+          <ImageCard bind:files />
+        {:else if currentStep == STEP_META}
+          <div
+            class="w-full lg:w-5/5 lg:border-right lg:border-solid text-center md:text-left"
+          >
+            <br />
+            <label class="label p-2">
+              <!-- <span>Token:</span> -->
+              <input
+                class="input items-center text-center"
+                type="text"
+                placeholder="Token Name"
+                bind:value={token}
+              />
+            </label>
+            <label class="label p-2">
+              <input
+                class="input items-center text-center"
+                type="text"
+                placeholder="Artwork Title"
+                bind:value={title}
+              />
+            </label>
+
+            <label class="label p-2">
+              <input
+                class="input items-center text-center"
+                type="text"
+                placeholder="Artist Name"
+                bind:value={artist}
+              />
+            </label>
           </div>
-        </div>
-        <br />
-        <button class="btn variant-filled-primary input-group" on:click={create}
-          >Mint</button
-        >
-        <br />
-      {/if}
+
+          <label class="label p-2">
+            <input
+              class="input items-center text-center"
+              type="text"
+              placeholder="Description"
+              bind:value={desc}
+            />
+          </label>
+        {:else if currentStep == STEP_EDITION}
+          <div
+            class="flex flex-row w-full rounded-lg relative bg-transparent justify-center items-center mt-12"
+          >
+            <label class="label p-2">
+              <input
+                class="input items-center text-center"
+                type="number"
+                placeholder="Total Editions"
+                bind:value={temp}
+              />
+            </label>
+          </div>
+          <p class="mb-0 mt-4 text-grey-dark text-sm italic text-center">
+            Total Number of Editions
+          </p>
+        {:else if currentStep == STEP_ROYALTIES}
+          <p class="mb-0 mt-3 text-grey-dark text-sm italic">Payout Wallet</p>
+
+          <div
+            class="block w-full rounded-lg relative bg-transparent justify-center items-center mt-12"
+          >
+            <label class="label p-2">
+              <input
+                class="input items-center text-center"
+                type="text"
+                placeholder="Payout Address"
+                bind:value={payoutAddy}
+              />
+            </label>
+            <label class="label p-2">
+              <input
+                class="input items-center text-center"
+                type="number"
+                placeholder="% Royalties"
+                bind:value={percentRoyalty}
+              />
+            </label>
+          </div>
+        {:else}
+          <p class="mb-0 mt-3 text-grey-dark text-sm italic">Minted Asset</p>
+          <div
+            class="block w-full rounded-lg relative bg-transparent justify-center items-center mt-12"
+          >
+            <p class="mb-0 mt-3 text-grey-dark text-sm italic">
+              Token: {token}
+            </p>
+            <p class="mb-0 mt-3 text-grey-dark text-sm italic">
+              Royalty Wallet: {payoutAddy}
+            </p>
+            <p class="mb-0 mt-3 text-grey-dark text-sm italic">
+              Control Wallet: {controlAddy}
+            </p>
+          </div>
+        {/if}
+      </div>
     </div>
   </div>
+  <h1 class="text-center mt-16">MINT EDITIONS</h1>
+  <!-- <p class="text-center mt-6" style="font-size:.9em;">
+    learn about <a
+      href="https://www.worlddomz.net"
+      style="text-decoration: none;">world domination</a
+    >
+  </p> -->
 </div>
-<Toast />
 
-<style lang="postcss">
-  figure {
-    @apply flex relative flex-col;
-  }
-  figure img,
-  .img-bg {
-    @apply w-64 h-64 md:w-80 md:h-80;
-  }
-  .img-bg {
-    @apply absolute z-[-1] rounded-full blur-[50px] transition-all;
-    animation: pulse 5s cubic-bezier(0, 0, 0, 0.5) infinite,
-      glow 5s linear infinite;
-  }
-</style>
+<Toast />

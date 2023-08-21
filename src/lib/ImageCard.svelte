@@ -1,11 +1,42 @@
 <script lang="ts">
+  import { env } from "$env/dynamic/public";
   import { FileDropzone } from "@skeletonlabs/skeleton";
-  export let data: any;
-  export let files;
+  export let files: any;
 
   $: filteredList = files;
   let message = "";
   let success = false;
+
+  const handleUpload = async (file: any) => {
+    try {
+      if (file !== undefined || file != null) {
+        const data = new FormData();
+        data.append("file", file);
+        const pinataMetadata = JSON.stringify({
+          name: file.name,
+        });
+        data.append("pinataMetadata", pinataMetadata);
+
+        const res = await fetch(
+          "https://api.pinata.cloud/pinning/pinFileToIPFS",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${env.PUBLIC_SECRET_ACCESS_TOKEN}`,
+            },
+            body: data,
+          }
+        );
+        let resData = await res.json();
+        console.log("File uploaded, CID:", resData.IpfsHash);
+        files[0]["ipfs"] = resData.IpfsHash;
+      } else {
+        alert("no images uploaded");
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   function onChangeHandler(e: Event): void {
     //setMessage("");
@@ -14,9 +45,10 @@
     const fileType = file["type"];
     const validImageTypes = ["image/gif", "image/jpeg", "image/png"];
     if (validImageTypes.includes(fileType)) {
-      files = [...files, file];
+      files = [file];
       success = true;
       console.log(files);
+      handleUpload(file);
     } else {
       message = "only images accepted";
     }
@@ -27,8 +59,8 @@
   };
 </script>
 
-<div class="card p-4 mt-12 resize-none">
-  <p>Create</p>
+<div class=" p-4 mt-12 resize-none">
+  <!-- <p>ASSET IMAGE</p> -->
   <br />
   <p>{message}</p>
   <FileDropzone name="files" on:change={onChangeHandler}>
