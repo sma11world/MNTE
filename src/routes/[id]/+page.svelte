@@ -29,7 +29,7 @@
   //asset
   let files: any = [];
   let controlAddy = "";
-  let token = "ssss";
+  let token = "";
   let title = "";
   let artist = "";
   let desc = "";
@@ -42,23 +42,6 @@
   //contract/lucid
   let policy = "";
   let walletId = "";
-
-  function validateForm(): boolean {
-    let valid = false;
-    if (
-      token != "" &&
-      artist != "" &&
-      desc != "" &&
-      percentRoyalty != "" &&
-      payoutAddy != "" &&
-      title != "" &&
-      files != null &&
-      files.length > 0
-    ) {
-      valid = true;
-    }
-    return valid;
-  }
 
   function handleNext(step: string) {
     currentStep = step;
@@ -73,11 +56,9 @@
       let wallet: WalletApi;
       try {
         wallet = await connector.enable();
-        // const activeUser = new WalletConnection(wallet);
 
-        // let usr = await (await activeUser.newConnection()).wallet.address();
         const bFKey = env?.PUBLIC_BLOCKFROST_API;
-        // const emulator = new Emulator([{ address: usr, assets: {} }]);
+
         const lucid = await Lucid.new(
           new Blockfrost(
             "https://cardano-preprod.blockfrost.io/api/v0",
@@ -126,8 +107,6 @@
           extra: Data.from<Data>(Data.void()),
         };
 
-        console.log(files[0]["ipfs"]);
-        console.log(files[0].ipfs);
         // console.log([referenceUtxo]);
         const tx = await liveConnection
           .newTx()
@@ -213,23 +192,20 @@
           .attachMintingPolicy(mintingPolicy)
           .complete();
 
-        // .attachMetadata(721, metadata)
-        // .payToAddressWithData()
-
         const signedTx = await tx.sign().complete();
         const mintHash = await signedTx.submit();
 
         if (mintHash) {
           const t: ToastSettings = {
             message: "Successfully minted " + temp + " editions of " + title,
-            background: "variant-filled-tertiary",
+            background: "variant-secondary-primary",
           };
           toastStore.trigger(t);
           console.log("SUCCESS");
         } else {
           const t: ToastSettings = {
             message: "Failed to mint " + temp + " editions of " + title,
-            background: "variant-filled-warning",
+            background: "variant-filled-tertiary",
           };
           toastStore.trigger(t);
           title = "";
@@ -326,8 +302,8 @@
               }}>royalties</button
             >
           </li>
-          <!-- disabled={validateForm} -->
           <button
+            disabled={files[0]?.ipfs == null || token == ""}
             on:click={create}
             class="bg-white hover:bg-grey-darker focus:text-error hover:text-white w-1/2 lg:w-full py-2 mx-auto mt-12 text-black"
             >MINT</button
@@ -351,7 +327,7 @@
             <label class="label p-2">
               <!-- <span>Token:</span> -->
               <input
-                class="input items-center text-center"
+                class="focus:border-secondary-500 input items-center text-center"
                 type="text"
                 placeholder="Token Name"
                 bind:value={token}
@@ -359,7 +335,7 @@
             </label>
             <label class="label p-2">
               <input
-                class="input items-center text-center"
+                class="focus:border-secondary-500 input items-center text-center"
                 type="text"
                 placeholder="Artwork Title"
                 bind:value={title}
@@ -368,7 +344,7 @@
 
             <label class="label p-2">
               <input
-                class="input items-center text-center"
+                class="focus:border-secondary-500 input items-center text-center"
                 type="text"
                 placeholder="Artist Name"
                 bind:value={artist}
@@ -378,7 +354,7 @@
 
           <label class="label p-2">
             <input
-              class="input items-center text-center"
+              class="focus:border-secondary-500 input items-center text-center"
               type="text"
               placeholder="Description"
               bind:value={desc}
@@ -390,7 +366,7 @@
           >
             <label class="label p-2">
               <input
-                class="input items-center text-center"
+                class="input items-center text-center focus:border-tertiary-500"
                 type="number"
                 placeholder="Total Editions"
                 bind:value={temp}
@@ -408,7 +384,7 @@
           >
             <label class="label p-2">
               <input
-                class="input items-center text-center"
+                class="input items-center text-center focus:border-warning-500"
                 type="text"
                 placeholder="Payout Address"
                 bind:value={payoutAddy}
@@ -416,7 +392,7 @@
             </label>
             <label class="label p-2">
               <input
-                class="input items-center text-center"
+                class="input items-center text-center focus:border-warning-500"
                 type="number"
                 placeholder="% Royalties"
                 bind:value={percentRoyalty}
