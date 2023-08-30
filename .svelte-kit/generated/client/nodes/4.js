@@ -1,1 +1,1 @@
-export { default as component } from "../../../../src/routes/mint/[wallet]/+page.svelte";
+export { default as component } from "../../../../src/routes/todo/config/+page.svelte";

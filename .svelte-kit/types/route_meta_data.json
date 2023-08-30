@@ -2,5 +2,7 @@
 	"/": [
 		"src/routes/+page.server.ts"
 	],
+	"/todo/config": [],
+	"/todo/openedition": [],
 	"/[id]": []
 }

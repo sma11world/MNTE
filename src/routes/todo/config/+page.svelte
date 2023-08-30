@@ -1,7 +1,6 @@
 <script lang="ts">
   import { page } from "$app/stores";
   import { env } from "$env/dynamic/public";
-  import AirdropCard from "$lib/AirdropCard.svelte";
   import ImageCard from "$lib/ImageCard.svelte";
   import {
     Toast,
@@ -23,19 +22,12 @@
   const STEP_EDITION = "editions";
   const STEP_ROYALTIES = "royalties";
 
-  let airDropWallets = "";
-  let isAirdrop = false;
-  // airDropWallets.indexOf(",") > -1
-  //   ? airDropWallets.split(",")
-  //   : airDropWallets.split(" ");
-
   //build stages
   $: currentStep = STEP_UPLOAD;
   let totalSteps = 2;
 
   //asset
   let files: any = [];
-  let airdropFiles: any = [];
   let controlAddy = "";
   let token = "";
   let title = "";
@@ -55,8 +47,8 @@
     currentStep = step;
   }
 
-  async function create() {
-    walletId = $page.params.id;
+  async function mint() {
+    walletId = "nami";
 
     if (cardano && cardano[walletId]) {
       const connector = cardano[walletId];
@@ -76,21 +68,24 @@
         );
 
         const liveConnection = await lucid.selectWallet(wallet);
-        const connectedWalletAddress = await liveConnection.wallet.address();
+        const griffAddress = await liveConnection.wallet.address();
 
-        const { paymentCredential } = lucid.utils.getAddressDetails(
-          connectedWalletAddress
-        );
+        const { paymentCredential } =
+          lucid.utils.getAddressDetails(griffAddress);
+        console.log("P " + paymentCredential);
 
         const mintingPolicy = liveConnection.utils.nativeScriptFromJson({
           type: "all",
-          scripts: [{ type: "sig", keyHash: paymentCredential?.hash }],
+          scripts: [
+            { type: "sig", keyHash: paymentCredential?.hash },
+            {
+              type: "before",
+              slot: lucid.utils.unixTimeToSlot(Date.now() + 10000000),
+            },
+          ],
         });
-
-        // {
-        //       type: "before",
-        //       slot: lucid.utils.unixTimeToSlot(Date.now() + 10000000),
-        //     },
+        console.log("hash");
+        console.log(paymentCredential?.hash);
 
         const policyId = liveConnection.utils.mintingPolicyToId(mintingPolicy);
 
@@ -99,22 +94,17 @@
 
         controlAddy = controlAddress;
 
-        let addys = [
-          "addr_test1qpg06wpu36w3fz7e93gywjqppm0cvwtndfm8pqezrec9e5l2lu23mpwnk8chc9rqmlkpwg2w7k2pqs6jlt0cqrrxp9eqtwl2dc",
-          "addr_test1qzrkmkyzpd5mxw058j4anx2pq6j6wan6zlcjpa36lv3g5xqjelcg7casn9edxzea3neuyqnla3nmnau24rrty8y4gyss5avap5",
-          "addr_test1qr5882s0r2gfqpkeer70mxkz7jaejy8h3xxgt3r9sffqyly3s3cs757n0jlgtjywtv075fmnucx3qy3c0mwp65c6alvqy7p342",
-          "addr_test1qqsa6nlhv8gd2k6eqpejjp4wm8kvlx9znmcez66jfdnrfx05fd0nyfg2h7gcmtujasqjj89zj79mszd37dt527j4v5uq7jf9zr",
-        ];
-
         let supply = 2n;
         supply = BigInt(temp);
+        console.log("updateableAddress: " + controlAddress);
+        console.log("policy: " + policyId);
 
-        // const [utxo] = await lucid.utxosAt(controlAddress);
+        const [utxo] = await lucid.utxosAt(controlAddress);
 
-        // const [referenceUtxo] = await lucid.utxosAtWithUnit(
-        //   controlAddress,
-        //   toUnit(policyId, fromText(title), 100)
-        // );
+        const [referenceUtxo] = await lucid.utxosAtWithUnit(
+          controlAddress,
+          toUnit(policyId, fromText(title), 100)
+        );
 
         const royaltyInfo: any = {
           address: payoutAddy,
@@ -125,15 +115,13 @@
           extra: Data.from<Data>(Data.void()),
         };
 
-        const txBuilder = await liveConnection
+        // console.log([referenceUtxo]);
+        const tx = await liveConnection
           .newTx()
           // .collectFrom([referenceUtxo])
           .mintAssets({
             [toUnit(policyId, fromText(token), 100)]: 1n,
-            // [toUnit(policyId, fromText(title), 222)]: 1n,
-            [toUnit(policyId, fromText(token), 444)]: supply,
             [toUnit(policyId, fromText(token), 500)]: 1n,
-            // [toUnit(policyId, fromText(title + "#2"), 100)]: -1n,
           })
           .payToAddressWithData(
             controlAddress,
@@ -180,30 +168,16 @@
               [toUnit(policyId, fromText(token), 100)]: 1n,
             }
           )
-          .validTo(Date.now() + 100000)
-          .attachMintingPolicy(mintingPolicy);
+          .validTo(Date.now() + 10000000)
+          .attachMintingPolicy(mintingPolicy)
+          .complete();
 
-        for (let i = 0; i < addys.length; i++) {
-          if (supply + 1n > i) {
-            //Total editions greater than list, send access to creators wallet
-            txBuilder.payToAddress(connectedWalletAddress, {
-              [toUnit(policyId, fromText(title), 444)]: 1n,
-            });
-          } else {
-            txBuilder.payToAddress(addys[i], {
-              [toUnit(policyId, fromText(title), 444)]: 1n,
-            });
-          }
-        }
-
-        const tx = await txBuilder.complete();
-
-        const txSigned = await tx.sign().complete();
-        const mintHash = await txSigned.submit();
+        const signedTx = await tx.sign().complete();
+        const mintHash = await signedTx.submit();
 
         if (mintHash) {
           const t: ToastSettings = {
-            message: "Successfully created " + temp + " editions of " + title,
+            message: "Successfully minted " + temp + " editions of " + title,
             background: "variant-secondary-primary",
           };
           toastStore.trigger(t);
@@ -228,10 +202,7 @@
   }
 </script>
 
-<!-- <p>{console.log(airDropWallets.includes(","))}</p> -->
 <div class="container mt-32 mx-auto p-4 md:p-0">
-  <h1 class="text-center mt-16">MINT EDITIONS</h1>
-  <br />
   <div class="shadow-lg flex flex-wrap w-full lg:w-3/4 mx-auto border-none">
     <div
       class="w-full md:w-1/5 h-64 md:h-auto relative p-4 bg-black text-white"
@@ -270,9 +241,9 @@
               }}>royalties</button
             >
           </li>
+          <!-- disabled={files[0]?.ipfs == null || token == ""} -->
           <button
-            disabled={files[0]?.ipfs == null || token == ""}
-            on:click={create}
+            on:click={mint}
             class="bg-white hover:bg-grey-darker focus:text-error hover:text-white w-1/2 lg:w-full py-2 mx-auto mt-12 text-black"
             >MINT</button
           >
@@ -330,7 +301,7 @@
           </label>
         {:else if currentStep == STEP_EDITION}
           <div
-            class="flex flex-row w-full rounded-lg relative bg-transparent justify-center items-center mt-6"
+            class="flex flex-row w-full rounded-lg relative bg-transparent justify-center items-center mt-12"
           >
             <label class="label p-2">
               <input
@@ -342,21 +313,8 @@
             </label>
           </div>
           <p class="mb-0 mt-4 text-grey-dark text-sm italic text-center">
-            Set Number of Editions
+            Total Number of Editions
           </p>
-
-          <!-- <div class="container mx-auto flex justify-center items-center mt-6">
-            <button
-              class="variant-filled-tertiary p-2 text-center mx-auto"
-              on:click={() => {
-                isAirdrop = !isAirdrop;
-              }}>Airdrop To Users</button
-            >
-            <br />
-          </div> -->
-          <!-- <p class="container mx-auto flex justify-center items-center mt-6">
-            Airdrop: {isAirdrop ? "on" : "off"}
-          </p> -->
         {:else if currentStep == STEP_ROYALTIES}
           <p class="mb-0 mt-3 text-grey-dark text-sm italic">Payout Wallet</p>
 
@@ -399,15 +357,13 @@
       </div>
     </div>
   </div>
-  <!-- {#if isAirdrop}
-    {#each { length: temp } as _, i}
-      <input
-        class="input items-center text-center focus:border-tertiary-500 m-2"
-        type="text"
-        placeholder="Wallet Address"
-      />
-    {/each}
-  {/if} -->
+  <h1 class="text-center mt-16">MINT EDITIONS</h1>
+  <!-- <p class="text-center mt-6" style="font-size:.9em;">
+    learn about <a
+      href="https://www.worlddomz.net"
+      style="text-decoration: none;">world domination</a
+    >
+  </p> -->
 </div>
 
 <Toast />
