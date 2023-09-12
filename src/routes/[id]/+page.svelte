@@ -31,7 +31,6 @@
 
   //build stages
   $: currentStep = STEP_UPLOAD;
-  let totalSteps = 2;
 
   //asset
   let files: any = [];
@@ -99,22 +98,19 @@
 
         controlAddy = controlAddress;
 
-        let addys = [
-          "addr_test1qpg06wpu36w3fz7e93gywjqppm0cvwtndfm8pqezrec9e5l2lu23mpwnk8chc9rqmlkpwg2w7k2pqs6jlt0cqrrxp9eqtwl2dc",
-          "addr_test1qzrkmkyzpd5mxw058j4anx2pq6j6wan6zlcjpa36lv3g5xqjelcg7casn9edxzea3neuyqnla3nmnau24rrty8y4gyss5avap5",
-          "addr_test1qr5882s0r2gfqpkeer70mxkz7jaejy8h3xxgt3r9sffqyly3s3cs757n0jlgtjywtv075fmnucx3qy3c0mwp65c6alvqy7p342",
-          "addr_test1qqsa6nlhv8gd2k6eqpejjp4wm8kvlx9znmcez66jfdnrfx05fd0nyfg2h7gcmtujasqjj89zj79mszd37dt527j4v5uq7jf9zr",
-        ];
+        let addys = [connectedWalletAddress];
 
         let supply = 2n;
         supply = BigInt(temp);
 
-        // const [utxo] = await lucid.utxosAt(controlAddress);
+        const [utxo] = await lucid.utxosAt(controlAddress);
 
-        // const [referenceUtxo] = await lucid.utxosAtWithUnit(
-        //   controlAddress,
-        //   toUnit(policyId, fromText(title), 100)
-        // );
+        const [referenceUtxo] = await lucid.utxosAtWithUnit(
+          controlAddress,
+          toUnit(policyId, fromText(title), 100)
+        );
+        console.log(files[0].ipfs);
+        const imgUrl = files[0].ipfs;
 
         const royaltyInfo: any = {
           address: payoutAddy,
@@ -148,29 +144,12 @@
               new Constr(0, [
                 Data.fromJson({
                   name: title,
-                  image: files[0]["ipfs"],
+                  image: imgUrl.includes("ipfs://")
+                    ? imgUrl
+                    : "ipfs://" + imgUrl,
                   mediaType: "image/png",
                   description: desc,
-                  // files: [
-                  //   {
-                  //     mediaType: "image/png",
-                  //     name: "STAGE #1",
-                  //     image: !imgUrl.includes("ipfs://")
-                  //       ? "ipfs://" + imgUrl
-                  //       : imgUrl != ""
-                  //       ? imgUrl
-                  //       : imgUrl,
-                  //   },
-                  //   {
-                  //     mediaType: "image/png",
-                  //     name: "STAGE #2",
-                  //     image: !imgUrl2.includes("ipfs://")
-                  //       ? "ipfs://" + imgUrl2
-                  //       : imgUrl2 != ""
-                  //       ? imgUrl2
-                  //       : imgUrl2,
-                  //   },
-                  // ],
+                  // archive: { image: imgUrl, mediaType: "image/png" },
                 }),
                 1n,
                 new Constr(0, []),
@@ -184,16 +163,9 @@
           .attachMintingPolicy(mintingPolicy);
 
         for (let i = 0; i < addys.length; i++) {
-          if (supply + 1n > i) {
-            //Total editions greater than list, send access to creators wallet
-            txBuilder.payToAddress(connectedWalletAddress, {
-              [toUnit(policyId, fromText(title), 444)]: 1n,
-            });
-          } else {
-            txBuilder.payToAddress(addys[i], {
-              [toUnit(policyId, fromText(title), 444)]: 1n,
-            });
-          }
+          txBuilder.payToAddress(addys[i], {
+            [toUnit(policyId, fromText(token), 444)]: 1n,
+          });
         }
 
         const tx = await txBuilder.complete();
@@ -270,8 +242,8 @@
               }}>royalties</button
             >
           </li>
+          <!-- disabled={files[0]?.ipfs == null || token == ""} -->
           <button
-            disabled={files[0]?.ipfs == null || token == ""}
             on:click={create}
             class="bg-white hover:bg-grey-darker focus:text-error hover:text-white w-1/2 lg:w-full py-2 mx-auto mt-12 text-black"
             >MINT</button
